@@ -1,0 +1,7 @@
+.old/
+config/config.json
+config/users.json
+examples/
+playlists/*
+*.txt
+__pycache__

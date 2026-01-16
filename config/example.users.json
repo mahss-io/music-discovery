@@ -1,0 +1,9 @@
+{
+  "Friendly Human Readable Name": {
+    "jellyfinUserId": "<jellyfin_user_uuid>",
+    "listenbrainzUsername": "<listenbrainz username>"
+  },
+  "Admin (Used to managed jellyfin playlists better)": {
+    "jellyfinUserId": "<jellyfin_user_uuid>"
+  }
+}

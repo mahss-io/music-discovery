@@ -1,0 +1,9 @@
+{
+    "jellyfin_base_url": "<base jellyfin url, no trailing slash>",
+    "jellyfin_api_token": "<jellyfin api token generated in admin dashboard>",
+    "lidarr_base_url": "<base lidarr url, no trailing slash>",
+    "lidarr_api_token": "<lidarr api token>",
+    "listenbrainz_base_url": "<base listenbrainz url, no trailing slash>",
+    "listenbrainz_api_token": "<listenbrainz api token, this might not be required>",
+    "musicbrainz_base_url": "<base musicbrainz url, no trailing slash>"
+}
