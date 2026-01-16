@@ -17,7 +17,7 @@ def exit_handler():
 
 atexit.register(exit_handler)
 
-jf = JellyfinAPI(cm.get_jellyfin_base_url(), cm.get_jellyfin_userid("Admin"), cm.get_jellyfin_api_token())
+jf = JellyfinAPI(cm.get_jellyfin_base_url(), cm.get_jellyfin_userid("Admin") if cm.get_jellyfin_userid("Admin") is not None else cm.get_jellyfin_userids()[0], cm.get_jellyfin_api_token())
 li = LidarrAPI(cm.get_lidarr_base_url(), cm.get_lidarr_api_token())
 lb = ListenBrainzAPI(cm.get_listenbrainz_base_url(), cm.get_listenbrainz_api_token())
 mb = MusicBrainzAPI(cm.get_musicbrainz_base_url())
@@ -80,5 +80,6 @@ for listenbrainzId, playlist_data in pm.playlists.items():
                 track_data['addedInJellyfin'] = True
 
 # Cleanup local playlists
-
+# TODO
 # Cleanup Jellyfin playlists
+# TODO
