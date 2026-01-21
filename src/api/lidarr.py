@@ -51,7 +51,9 @@ class LidarrAPI(API):
             "monitored": True,
             "path": lidarr_artist_path,
             "qualityProfileId": 1,
-            "metadataProfileId": 1
+            "metadataProfileId": 1,
+            "monitorNewItems": "none",
+            "monitor": "missing"
         }
 
     def monitor_existing_album(self, lidarr_album_id, release_group_id):
