@@ -5,3 +5,5 @@ examples/
 playlists/*
 *.txt
 __pycache__
+music_discovery.sh
+playlists_bk

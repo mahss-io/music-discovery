@@ -56,5 +56,19 @@ class API():
             print("Issue with making PUT request")
         return {}
 
+    def _delete_request(self, url, delay=0):
+        try:
+            if (delay != 0):
+                while ((datetime.datetime.now() - self._last_request_sent).seconds < delay):
+                    time.sleep(1)
+            self._last_request_sent = datetime.datetime.now()
+            print(f"Making DELETE request to '{url}'")
+            response = requests.delete(url, headers=self._headers)
+            if (self._handle_http_status(response) and response.text != ''):
+                return response.json()
+        except requests.exceptions.ConnectionError:
+            print("Issue with making DELETE request")
+        return {}
+
     def _create_url(self, url, query_params={}):
         return f"{url}{'?' if query_params != {} else ''}{urllib.parse.urlencode(query_params)}"

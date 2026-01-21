@@ -1,3 +1,4 @@
+import os
 from .file_manager import FileManager
 
 class ConfigManager(FileManager):

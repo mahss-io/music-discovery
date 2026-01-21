@@ -1,4 +1,5 @@
 import atexit
+import datetime
 
 from api.jellyfin import JellyfinAPI
 from api.lidarr import LidarrAPI
@@ -8,6 +9,7 @@ from util.config_manager import ConfigManager
 from util.playlist_manager import PlaylistManager
 
 update_local_playlists = True
+cleanup_jellyfin_playlists = False
 
 cm = ConfigManager()
 pm = PlaylistManager()
@@ -44,24 +46,6 @@ for listenbrainzId, playlist_data in pm.playlists.items():
             pm.update_playlist(listenbrainzId, playlist_data, update_file=False)
     pm.update_playlist(listenbrainzId, playlist_data)
 
-# Lidarr
-for listenbrainzId, playlist_data in pm.playlists.items():
-    for track_data in playlist_data.get('tracks', []):
-        if (track_data.get('lidarrAlbumId') is None or track_data.get('lidarrIsMonitoring') is None):
-            lidarr_data = li.get_lidarr_tracking_data(track_data.get('musicBrainzReleaseId'), track_data.get('musicbrainzReleaseGroupId'))
-            if (lidarr_data != {}):
-                track_data['lidarrAlbumId'] = lidarr_data.get('lidarrAlbumId')
-                track_data['lidarrIsMonitoring'] = lidarr_data.get('lidarrIsMonitoring')
-        if (track_data.get('lidarrAlbumId') != 0 and not track_data.get('lidarrIsMonitoring') ):
-            li.monitor_existing_album(track_data.get('lidarrAlbumId'), track_data.get('musicbrainzReleaseGroupId'))
-            track_data['lidarrIsMonitoring'] = True
-        elif (track_data.get('lidarrAlbumId' == 0)):
-            print(li.request_new_artist_and_album(track_data.get('musicBrainzArtistId'), track_data.get('musicbrainzReleaseGroupId')))
-            track_data['lidarrAlbumId'] = lidarr_data.get('lidarrAlbumId')
-            track_data['lidarrIsMonitoring'] = True
-            break
-
-
 # Jellyfin
 # Goes through each local playlist and will create jellyfin playlist for each.
 # Then it will try and add tags if they are not already tagged.
@@ -71,15 +55,63 @@ for listenbrainzId, playlist_data in pm.playlists.items():
         jellyfin_playlist_id = jf.create_playlist_from_local(playlist_data, cm.get_jellyfin_userids())
         playlist_data['jellyfinPlaylistId'] = jellyfin_playlist_id.get('Id')
         pm.update_playlist(listenbrainzId, playlist_data)
-    jf.add_tags_to_playlist(playlist_data.get('jellyfinPlaylistId'), playlist_data.get('week'), playlist_data.get('listenbrainzUsername'), listenbrainzId)
+    jf.tag_playlist(playlist_data.get('jellyfinPlaylistId'), playlist_data.get('week'), playlist_data.get('listenbrainzUsername'), playlist_data.get('year'), listenbrainzId)
     for track_data in playlist_data.get('tracks', []):
         if (not track_data.get('addedInJellyfin')):
             result = jf.find_track(track_data.get('artistName'), track_data.get('albumName'), track_data.get('trackName'))
             if result != {}:
                 jf.add_song_to_playlist(playlist_data.get('jellyfinPlaylistId'), result.get('Id'))
                 track_data['addedInJellyfin'] = True
+    pm.update_playlist(listenbrainzId, playlist_data)
+
+# Lidarr
+for listenbrainzId, playlist_data in pm.playlists.items():
+    for track_data in playlist_data.get('tracks', []):
+        release_group_id = track_data.get('musicbrainzReleaseGroupId')
+        release_id = track_data.get('musicBrainzReleaseId')
+        if (not track_data.get('addedInJellyfin') and release_group_id is not None):
+            # Gets the relavent 
+            lidarr_album_data = li.get_lidarr_album_tracking_data(release_group_id)
+            lidarr_monitoring_album = lidarr_album_data.get('monitored', False)
+            lidarr_monitoring_artist = lidarr_album_data.get('artist', {}).get('monitored', False)
+            lidarr_album_id = lidarr_album_data.get('id', 0)
+            lidarr_artist_id = lidarr_album_data.get('artistId', 0)
+            lidarr_artist_path = lidarr_album_data.get('artist', {}).get('path', "/raid10/media/music/")
+
+            # If Lidarr data has not been populated locally
+            if (track_data.get('lidarrAlbumId') is None or track_data.get('lidarrIsMonitoring') is None):
+                if (lidarr_album_data != {}):
+                    track_data['lidarrAlbumId'] = lidarr_album_id
+                    track_data['lidarrIsMonitoring'] = lidarr_monitoring_album
+            # If it is not being tracked, start tracking it
+            if (not lidarr_monitoring_artist and not lidarr_monitoring_album and lidarr_artist_id == 0 and lidarr_album_id == 0):
+                li.request_new_artist_and_album(track_data.get('musicBrainzArtistId'), release_group_id)
+                track_data['lidarrAlbumId'] = lidarr_album_id
+                track_data['lidarrIsMonitoring'] = True
+            # Else track only what is currently not being tracked
+            elif (lidarr_artist_id != 0 and lidarr_album_id != 0):
+                if (not lidarr_monitoring_album):
+                    li.monitor_existing_album(lidarr_album_id, release_group_id)
+                if (not lidarr_monitoring_artist):
+                    li.monitor_existing_artist(lidarr_artist_id, lidarr_artist_path)
+                track_data['lidarrAlbumId'] = lidarr_album_id
+                track_data['lidarrIsMonitoring'] = True
+    pm.update_playlist(listenbrainzId, playlist_data)
 
 # Cleanup local playlists
-# TODO
+to_delete = []
+for listenbrainzId, playlist_data in pm.playlists.items():
+    if datetime.datetime.now().isocalendar()[1] - playlist_data.get('week') >= 4:
+        to_delete.append(listenbrainzId)
+for listenbrainzId in to_delete:
+    pm.delete_playlist(listenbrainzId)
+
 # Cleanup Jellyfin playlists
-# TODO
+if (cleanup_jellyfin_playlists):
+    for jellyfin_playlist in jf.get_playlists():
+        jellyfin_playlist = jf.get_playlist(jellyfin_playlist.get('Id'))
+        jellyfin_playlist_created_date = jf.get_playlist_created_date(jellyfin_playlist=jellyfin_playlist)
+        if (jf.is_playlist_weekly_explore(jellyfin_playlist)):
+            # print(f"Trying to delete {jellyfin_playlist.get('Name')}")
+            if datetime.datetime.now().isocalendar()[1] - jellyfin_playlist_created_date.isocalendar()[1] >= 6:
+                jf.delete_playlist(jellyfin_playlist_id)
