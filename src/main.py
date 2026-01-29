@@ -46,6 +46,12 @@ for listenbrainzId, playlist_data in pm.playlists.items():
             pm.update_playlist(listenbrainzId, playlist_data, update_file=False)
     pm.update_playlist(listenbrainzId, playlist_data)
 
+# Load/update counts counts
+for listenbrainzId, playlist_data in pm.playlists.items():
+    playlist_data['total_count'] = len(playlist_data.get('tracks', []))
+    playlist_data['mon_count'] = [track_data.get('lidarrIsMonitoring', False) for track_data in playlist_data.get('tracks', [])].count(True)
+    pm.update_playlist(listenbrainzId, playlist_data)
+
 # Jellyfin
 # Goes through each local playlist and will create jellyfin playlist for each.
 # Then it will try and add tags if they are not already tagged.
@@ -57,6 +63,8 @@ for listenbrainzId, playlist_data in pm.playlists.items():
         pm.update_playlist(listenbrainzId, playlist_data)
     jf.tag_playlist(playlist_data.get('jellyfinPlaylistId'), playlist_data.get('week'), playlist_data.get('listenbrainzUsername'), playlist_data.get('year'), listenbrainzId)
     for track_data in playlist_data.get('tracks', []):
+        if (playlist_data.get('mon_count') > cm.get_lidarr_user_counts().get(playlist_data.get('listenbrainzUsername', 0))):
+            break
         if (not track_data.get('addedInJellyfin')):
             result = jf.find_track(track_data.get('artistName'), track_data.get('albumName'), track_data.get('trackName'))
             if result != {}:
@@ -67,6 +75,8 @@ for listenbrainzId, playlist_data in pm.playlists.items():
 # Lidarr
 for listenbrainzId, playlist_data in pm.playlists.items():
     for track_data in playlist_data.get('tracks', []):
+        if (playlist_data.get('mon_count') > cm.get_lidarr_user_counts().get(playlist_data.get('listenbrainzUsername', 0))):
+            break
         release_group_id = track_data.get('musicbrainzReleaseGroupId')
         release_id = track_data.get('musicBrainzReleaseId')
         if (not track_data.get('addedInJellyfin') and release_group_id is not None):

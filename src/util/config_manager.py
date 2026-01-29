@@ -18,6 +18,12 @@ class ConfigManager(FileManager):
     def _get_user_config(self):
         self.user_config = self._read_file(f"../{self.USER_CONFIG_FILE_PATH}")
 
+    def get_lidarr_user_counts(self):
+        toRet = {}
+        for name, user_data in self.user_config.items():
+            toRet.update({user_data.get('listenbrainzUsername'): user_data.get('limits', {'count': 50}).get('count', 0)})
+        return toRet
+
     def get_user_data(self):
         return self.user_config
     
